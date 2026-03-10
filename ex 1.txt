@@ -1,0 +1,234 @@
+ex 1
+data <- mtcars
+print(head(data))
+print(tail(data))
+print(dim(data))
+print(str(data))
+print(summary(data))
+print(colSums(is.na(data)))
+stats <- data.frame(
+  Mean = sapply(data, mean),
+  Median = sapply(data, median),
+  SD = sapply(data, sd),
+  Variance = sapply(data, var)
+)
+print(stats)
+hist(data$mpg, main = "Histogram of MPG", xlab = "MPG")
+boxplot(data$mpg, main = "Boxplot of MPG", ylab = "MPG")
+plot(data$mpg, data$hp, main = "MPG vs HP", xlab = "MPG", ylab = "Horsepower")
+corr_matrix <- cor(data)
+image(corr_matrix, main = "Correlation Heatmap")
+par(mfrow = c(1, 1))     # reset plot layout
+print(corr_matrix)
+
+ex2
+data <- mtcars
+str(data)
+summary(data)
+print(colSums(is.na(data)))
+for (col in colnames(data)) {
+  if (is.numeric(data[[col]])) {
+    data[[col]][is.na(data[[col]])] <- mean(data[[col]], na.rm = TRUE)
+  }
+}
+data$cyl <- as.factor(data$cyl)
+data$gear <- as.factor(data$gear)
+data <- subset(data, select = -c(carb))
+numeric_cols <- sapply(data, is.numeric)
+for (col in names(data)[numeric_cols]) {
+  Q1 <- quantile(data[[col]], 0.25)
+  Q3 <- quantile(data[[col]], 0.75)
+  IQR <- Q3 - Q1
+  lower <- Q1 - 1.5 * IQR
+  upper <- Q3 + 1.5 * IQR
+  data <- data[data[[col]] >= lower & data[[col]] <= upper, ]
+}
+for (col in names(data)[numeric_cols]) {
+  data[[paste0(col, "_norm")]] <- 
+    (data[[col]] - min(data[[col]])) / (max(data[[col]]) - min(data[[col]]))
+}
+for (col in names(data)[numeric_cols]) {
+  data[[paste0(col, "_scaled")]] <- scale(data[[col]])
+}
+set.seed(123)
+index <- sample(1:nrow(data), 0.7 * nrow(data))
+train <- data[index, ]
+test  <- data[-index, ]
+print(head(train))
+print(head(test))
+
+ex3
+library(e1071)     # For SVM
+library(caret)     # For confusion matrix
+library(ggplot2)   # For visualization
+data(iris)
+df <- iris
+print(head(df))
+set.seed(123)
+train_index <- sample(1:nrow(df), 0.8 * nrow(df))
+train <- df[train_index, ]
+test  <- df[-train_index, ]
+svm_model <- svm(Species ~ ., data = train,
+                 kernel = "radial",   # RBF kernel (most commonly used)
+                 cost = 1,
+                 gamma = 0.1)
+print(svm_model)
+pred <- predict(svm_model, newdata = test)
+conf <- confusionMatrix(pred, test$Species)
+print(conf)
+ggplot(df, aes(Petal.Length, Petal.Width, color = Species)) +
+  geom_point(size = 3) +
+  ggtitle("Iris Dataset - SVM Classification (Petal Length vs Width)") +
+  theme_minimal()
+
+ex4
+library(randomForest)
+library(caret)
+data(iris)
+set.seed(123)
+trainIndex <- createDataPartition(iris$Species, p = 0.7, list = FALSE)
+train <- iris[trainIndex, ]
+test  <- iris[-trainIndex, ]
+rf_model <- randomForest(Species ~ ., data = train,
+                         ntree = 500,
+                         mtry = 2,
+                         importance = TRUE)
+print(rf_model)
+pred <- predict(rf_model, newdata = test)
+confusionMatrix(pred, test$Species)
+varImpPlot(rf_model)
+
+ex5
+library(rpart)        
+library(rpart.plot)   
+data(iris)
+head(iris)
+set.seed(123)  # reproducibility
+train_index <- sample(1:nrow(iris), 0.7 * nrow(iris))
+train_data <- iris[train_index, ]
+test_data  <- iris[-train_index, ]
+dt_model <- rpart(Species ~ ., data = train_data, method = "class")
+print(dt_model)
+rpart.plot(dt_model, type = 3, extra = 101, fallen.leaves = TRUE)
+library(rattle)
+asRules(dt_model)
+pred <- predict(dt_model, test_data, type = "class")
+table(Predicted = pred, Actual = test_data$Species)
+accuracy <- mean(pred == test_data$Species)
+accuracy
+
+ex6
+data(iris)
+iris_data <- iris[, 1:4]
+set.seed(123)   # for reproducibility
+kmeans_result <- kmeans(iris_data, centers = 3)
+print("Cluster size:")
+print(kmeans_result$size)
+print("Cluster centers:")
+print(kmeans_result$centers)
+print("Cluster vs Species:")
+print(table(kmeans_result$cluster, iris$Species))
+plot(iris_data$Sepal.Length,
+     iris_data$Sepal.Width,
+     col = kmeans_result$cluster,
+     pch = 19,
+     xlab = "Sepal Length",
+     ylab = "Sepal Width",
+     main = "K-Means Clustering on Iris Dataset")
+points(kmeans_result$centers[, c(1,2)],
+       pch = 8,
+       cex = 2,
+       col = 1:3)
+
+ex7
+library(arules)
+transactions_data <- list(
+  c("Milk", "Bread", "Butter"),
+  c("Bread", "Butter"),
+  c("Milk", "Bread"),
+  c("Milk", "Butter"),
+  c("Bread", "Butter", "Jam"),
+  c("Milk", "Bread", "Butter", "Jam")
+)
+transactions <- as(transactions_data, "transactions")
+inspect(transactions)
+rules <- apriori(transactions,
+                 parameter = list(
+                   supp = 0.3,
+                   conf = 0.6
+                 ))
+inspect(rules)
+rules_sorted <- sort(rules, by = "confidence", decreasing = TRUE)
+inspect(rules_sorted)
+strong_rules <- subset(rules_sorted, lift > 1)
+inspect(strong_rules)
+
+ex8
+data(mtcars)
+head(mtcars)
+set.seed(123)
+index <- sample(1:nrow(mtcars), 0.7*nrow(mtcars))
+train <- mtcars[index, ]
+test <- mtcars[-index, ]
+plot(train$wt, train$mpg,
+     main="Weight vs Mileage",
+     xlab="Weight",
+     ylab="MPG")
+model <- lm(mpg ~ wt, data=train)
+summary(model)
+abline(model, col="red")
+predict(model, newdata=test)
+
+ex9
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+text_data <- c(
+"Text mining is an interesting area of data science",
+"R is widely used for text mining and data analysis",
+"Text mining helps extract useful information from text",
+"Data science includes machine learning and text mining"
+)
+corpus <- Corpus(VectorSource(text_data))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+corpus <- tm_map(corpus, stripWhitespace)
+dtm <- DocumentTermMatrix(corpus)
+dtm_matrix <- as.matrix(dtm)
+word_freq <- sort(colSums(dtm_matrix), decreasing = TRUE)
+word_freq_df <- data.frame(
+  word = names(word_freq),
+  frequency = word_freq
+)
+print(word_freq_df)
+set.seed(123)
+wordcloud(
+  words = word_freq_df$word,
+  freq = word_freq_df$frequency,
+  min.freq = 1,
+  max.words = 50,
+  random.order = FALSE,
+  colors = brewer.pal(8, "Dark2")
+)
+
+ex10
+features <- iris[,1:4]
+scaled_features <- scale(features)
+pca_model <- prcomp(scaled_features, center = TRUE, scale. = TRUE)
+pca_model$sdev^2
+pca_model$rotation
+reduced_data <- pca_model$x
+head(reduced_data)
+plot(pca_model, type="l", main="Scree Plot")
+plot(reduced_data[,1], reduced_data[,2],
+     col=as.numeric(iris$Species),
+     pch=19,
+     xlab="PC1",
+     ylab="PC2",
+     main="PCA Projection")
+legend("topright", legend=levels(iris$Species),
+       col=1:3, pch=19)
